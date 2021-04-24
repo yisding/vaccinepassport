@@ -218,21 +218,28 @@ export const uploadImage = functions.https.onRequest((req, res) => {
 /**
  * Get the image URL for this user.
  */
-export const getUrl = functions.https.onRequest(async (req, res) => {
-  functions.logger.info("getUrl");
-  const uid = await verifyAndGetUid(req, res);
+export const getUrl = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    functions.logger.info("getUrl");
+    const uid = await verifyAndGetUid(req, res);
 
-  if (!uid) {
+    if (!uid) {
+      return;
+    }
+
+    const userDocRef = admin.firestore().collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
+      res.json({ payload: { imageUrl: null } });
+      return;
+    }
+
+    const userData = userDoc.data() as User;
+
+    res.json({ payload: { imageUrl: "/view/" + userData.image } });
     return;
-  }
-
-  const userDocRef = admin.firestore().collection("users").doc(uid);
-  const userDoc = await userDocRef.get();
-  const userData = userDoc.data() as User;
-
-  res.json({ payload: { imageUrl: "/view/" + userData.image } });
-
-  return;
+  });
 });
 
 /**
@@ -241,49 +248,51 @@ export const getUrl = functions.https.onRequest(async (req, res) => {
  * The user will get a notification and have to decide whether or not to
  * approve the token.
  */
-export const getTicket = functions.https.onRequest(async (req, res) => {
-  functions.logger.info("getTicket");
+export const getTicket = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    functions.logger.info("getTicket");
 
-  if (req.method !== "POST") {
-    // 405 is method not allowed.
-    return res.status(405).end();
-  }
+    if (req.method !== "POST") {
+      // 405 is method not allowed.
+      return res.status(405).end();
+    }
 
-  const image = req.query.image;
-  if (!image || typeof image !== "string") {
-    res.status(400).json({ error: "missing image" });
-    return;
-  }
+    const image = req.query.image;
+    if (!image || typeof image !== "string") {
+      res.status(400).json({ error: "missing image" });
+      return;
+    }
 
-  const parts = parseImagePath(image);
-  if (!parts) {
-    res.status(400).json({ error: "missing image" });
-    return;
-  }
+    const parts = parseImagePath(image);
+    if (!parts) {
+      res.status(400).json({ error: "missing image" });
+      return;
+    }
 
-  const sharerUid = parts.uid;
+    const sharerUid = parts.uid;
 
-  const sharerDocRef = admin.firestore().collection("users").doc(sharerUid);
-  const sharerDoc = await sharerDocRef.get();
-  const sharerData = sharerDoc.data() as User;
+    const sharerDocRef = admin.firestore().collection("users").doc(sharerUid);
+    const sharerDoc = await sharerDocRef.get();
+    const sharerData = sharerDoc.data() as User;
 
-  if (image !== sharerData.image) {
-    res.json({ error: "incorrect image, retry" });
-    return;
-  }
+    if (image !== sharerData.image) {
+      res.json({ error: "incorrect image, retry" });
+      return;
+    }
 
-  const now = Date.now();
-  const expiration = now + 5 * 60 * 1000; // 5 minutes
-  const code = crypto.randomInt(10000, 100000);
-  const hash = crypto.randomBytes(16).toString("hex");
-  const ticket: Ticket = {
-    code,
-    expiration: FirebaseFirestore.Timestamp.fromMillis(expiration),
-    approved: false,
-  };
-  await sharerDocRef.update({ [`tickets.${hash}`]: ticket });
+    const now = Date.now();
+    const expiration = now + 5 * 60 * 1000; // 5 minutes
+    const code = crypto.randomInt(10000, 100000);
+    const hash = crypto.randomBytes(16).toString("hex");
+    const ticket: Ticket = {
+      code,
+      expiration: FirebaseFirestore.Timestamp.fromMillis(expiration),
+      approved: false,
+    };
+    await sharerDocRef.update({ [`tickets.${hash}`]: ticket });
 
-  res.json({ hash, code, expiration });
+    res.json({ hash, code, expiration });
+  });
 });
 
 /**
@@ -291,48 +300,50 @@ export const getTicket = functions.https.onRequest(async (req, res) => {
  * This could be done on the client side, but for consistency it's done in a
  * function here.
  */
-export const approveTicket = functions.https.onRequest(async (req, res) => {
-  functions.logger.info("getToken");
-  const hash = req.query.hash;
+export const approveTicket = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    functions.logger.info("getToken");
+    const hash = req.query.hash;
 
-  const uid = await verifyAndGetUid(req, res);
-  if (!uid) {
-    return;
-  }
-
-  if (!hash || typeof hash !== "string") {
-    res.status(400).json({ error: "missing hash" });
-    return;
-  }
-
-  const userDocRef = admin.firestore().collection("users").doc(uid);
-  const userDoc = await userDocRef.get();
-  const userData = userDoc.data() as User;
-
-  const ticket = userData.tickets[hash];
-  if (ticket) {
-    const now = Date.now();
-    const expirationTime = ticket.expiration.toMillis();
-    if (expirationTime > now) {
-      const oneMinuteFromNow = now + 1 * 60 * 1000;
-      if (expirationTime < oneMinuteFromNow) {
-        await userDocRef.update({
-          [`tickets.${hash}.approved`]: true,
-          [`tickets.${hash}.expiration`]: FirebaseFirestore.Timestamp.fromMillis(
-            oneMinuteFromNow
-          ),
-        });
-      } else {
-        await userDocRef.update({ [`tickets.${hash}.approved`]: true });
-      }
-      res.json({ approved: true });
-      return;
-    } else {
-      await userDocRef.update({ [`tickets.${hash}`]: FieldValue.delete() });
-      res.json({ error: "ticket expired" });
+    const uid = await verifyAndGetUid(req, res);
+    if (!uid) {
       return;
     }
-  }
+
+    if (!hash || typeof hash !== "string") {
+      res.status(400).json({ error: "missing hash" });
+      return;
+    }
+
+    const userDocRef = admin.firestore().collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+    const userData = userDoc.data() as User;
+
+    const ticket = userData.tickets[hash];
+    if (ticket) {
+      const now = Date.now();
+      const expirationTime = ticket.expiration.toMillis();
+      if (expirationTime > now) {
+        const oneMinuteFromNow = now + 1 * 60 * 1000;
+        if (expirationTime < oneMinuteFromNow) {
+          await userDocRef.update({
+            [`tickets.${hash}.approved`]: true,
+            [`tickets.${hash}.expiration`]: FirebaseFirestore.Timestamp.fromMillis(
+              oneMinuteFromNow
+            ),
+          });
+        } else {
+          await userDocRef.update({ [`tickets.${hash}.approved`]: true });
+        }
+        res.json({ approved: true });
+        return;
+      } else {
+        await userDocRef.update({ [`tickets.${hash}`]: FieldValue.delete() });
+        res.json({ error: "ticket expired" });
+        return;
+      }
+    }
+  });
 });
 
 const isApproved = async (sharerUid: string, hash: string) => {
@@ -359,84 +370,90 @@ const isApproved = async (sharerUid: string, hash: string) => {
  * subscribe to. So it's easier for now for the frontend to just poll this
  * endpoint.
  */
-export const canAccessimage = functions.https.onRequest(async (req, res) => {
-  const { image, hash } = req.query;
+export const canAccessimage = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    const { image, hash } = req.query;
 
-  if (!image || typeof image !== "string") {
-    res.status(400).json({ error: "missing image" });
-    return;
-  }
+    if (!image || typeof image !== "string") {
+      res.status(400).json({ error: "missing image" });
+      return;
+    }
 
-  if (!hash || typeof hash !== "string") {
-    res.status(400).json({ error: "missing hash" });
-    return;
-  }
+    if (!hash || typeof hash !== "string") {
+      res.status(400).json({ error: "missing hash" });
+      return;
+    }
 
-  const parts = parseImagePath(image);
-  if (!parts) {
-    res.status(400).json({ error: "missing image" });
-    return;
-  }
+    const parts = parseImagePath(image);
+    if (!parts) {
+      res.status(400).json({ error: "missing image" });
+      return;
+    }
 
-  const approved = await isApproved(parts.uid, hash);
+    const approved = await isApproved(parts.uid, hash);
 
-  res.json({ approved });
+    res.json({ approved });
+  });
 });
 
 /**
  * Once you have an approved token, download the image.
  */
-export const downloadImage = functions.https.onRequest(async (req, res) => {
-  const { image, hash } = req.query;
+export const downloadImage = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    const { image, hash } = req.query;
 
-  if (!image || typeof image !== "string") {
-    res.status(400).json({ error: "missing image" });
-    return;
-  }
+    if (!image || typeof image !== "string") {
+      res.status(400).json({ error: "missing image" });
+      return;
+    }
 
-  if (!hash || typeof hash !== "string") {
-    res.status(400).json({ error: "missing hash" });
-    return;
-  }
+    if (!hash || typeof hash !== "string") {
+      res.status(400).json({ error: "missing hash" });
+      return;
+    }
 
-  const parts = parseImagePath(image);
-  if (!parts) {
-    res.status(400).json({ error: "missing image" });
-    return;
-  }
+    const parts = parseImagePath(image);
+    if (!parts) {
+      res.status(400).json({ error: "missing image" });
+      return;
+    }
 
-  const approved = await isApproved(parts.uid, hash);
+    const approved = await isApproved(parts.uid, hash);
 
-  if (approved !== "approved") {
-    res.status(500).json({ error: "invalid hash" });
-    return;
-  }
+    if (approved !== "approved") {
+      res.status(500).json({ error: "invalid hash" });
+      return;
+    }
 
-  const bucket = admin.storage().bucket();
-  const readStream = bucket.file(image).createReadStream();
-  const stream = readStream.pipe(res);
+    const bucket = admin.storage().bucket();
+    const readStream = bucket.file(image).createReadStream();
+    const stream = readStream.pipe(res);
 
-  await new Promise((resolve, reject) => stream.on("finish", resolve));
+    await new Promise((resolve, reject) => stream.on("finish", resolve));
+  });
 });
 
-export const deleteUser = functions.https.onRequest(async (req, res) => {
-  const uid = await verifyAndGetUid(req, res);
-  if (!uid) {
-    return;
-  }
+export const deleteUser = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    const uid = await verifyAndGetUid(req, res);
+    if (!uid) {
+      return;
+    }
 
-  const userDocRef = admin.firestore().collection("users").doc(uid);
-  const userDoc = await userDocRef.get();
-  const userData = userDoc.data() as User;
+    const userDocRef = admin.firestore().collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+    const userData = userDoc.data() as User;
 
-  const bucket = admin.storage().bucket();
-  const file = bucket.file(userData.image);
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(userData.image);
 
-  // Delete the firestore first
-  await userDocRef.delete();
+    // Delete the firestore first
+    await userDocRef.delete();
 
-  // Then delete the image.
-  await file.delete();
+    // Then delete the image.
+    await file.delete();
 
-  res.json({ status: "success" });
+    res.json({ status: "success" });
+  });
 });

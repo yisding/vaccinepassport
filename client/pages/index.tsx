@@ -47,7 +47,13 @@ function QR({ url }: { url: string }) {
   return <img src={dataUrl} alt="Scan QR Code to see vaccination card." />;
 }
 
-function NoImage({ setImageUrl }) {
+function NoImage({
+  token,
+  setImageUrl,
+}: {
+  token: string;
+  setImageUrl: (imageUrl: string) => void;
+}) {
   const imageInput = useRef<HTMLInputElement>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string>(null);
 
@@ -64,8 +70,6 @@ function NoImage({ setImageUrl }) {
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-        const credential = await firebase.auth().signInAnonymously();
-        const token = await credential.user.getIdToken();
 
         const file = imageInput.current.files[0];
         const formData = new FormData();
@@ -100,13 +104,31 @@ function NoImage({ setImageUrl }) {
       </div>
       <div>{imageDataUrl && <img src={imageDataUrl} />}</div>
       <div>
-        <input type="submit" value="Upload" disabled={!imageDataUrl} />
+        <input
+          type="submit"
+          value="Upload"
+          disabled={!token || !imageDataUrl}
+        />
       </div>
     </form>
   );
 }
 
-function ExistingImage({ tickets, imageUrl }) {
+function ExistingImage({ imageUrl, token }) {
+  const [tickets, setTickets] = useState(null);
+
+  useEffect(() => {
+    const db = firebase.firestore();
+    const userDocRef = db
+      .collection("users")
+      .doc(firebase.auth().currentUser.uid);
+
+    userDocRef.onSnapshot((doc) => {
+      const userData = doc.data() as User;
+      setTickets(userData.tickets);
+    });
+  }, []);
+
   const qrUrl = new URL(imageUrl, location.href);
 
   return (
@@ -120,7 +142,32 @@ function ExistingImage({ tickets, imageUrl }) {
 }
 
 export default function Home() {
+  const [token, setToken] = useState<string>(null);
+
   const [imageUrl, setImageUrl] = useState(null);
+  const [fetchingUrl, setFetchingUrl] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const credential = await firebase.auth().signInAnonymously();
+      const idToken = await credential.user.getIdToken();
+      setToken(idToken);
+
+      const response = await fetch(
+        process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST + "getUrl",
+        {
+          method: "GET",
+          headers: new Headers({
+            Authorization: `Bearer ${idToken}`,
+          }),
+        }
+      );
+      const json = await response.json();
+      const imageUrl = json.payload.imageUrl;
+      setImageUrl(imageUrl);
+      setFetchingUrl(false);
+    })();
+  }, []);
 
   return (
     <div>
@@ -130,10 +177,12 @@ export default function Home() {
       </Head>
 
       <main>
-        {imageUrl ? (
-          <ExistingImage tickets={null} imageUrl={imageUrl} />
+        {fetchingUrl ? (
+          <div>Loading...</div>
+        ) : imageUrl ? (
+          <ExistingImage imageUrl={imageUrl} token={token} />
         ) : (
-          <NoImage setImageUrl={setImageUrl} />
+          <NoImage setImageUrl={setImageUrl} token={token} />
         )}
       </main>
 

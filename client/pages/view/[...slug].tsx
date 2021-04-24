@@ -9,16 +9,24 @@ interface TicketData {
 
 export default function ViewImage() {
   const router = useRouter();
-  const { image } = router.query;
-  if (typeof image !== "string") {
-    return;
-  }
-
+  const { slug } = router.query;
+  console.log("slug");
+  console.log(slug);
   const [ticketData, setTicketData] = useState<TicketData>(null);
   const [approved, setApproved] = useState<string>(null);
+  const [ticketError, setTicketError] = useState<string>(null);
+
+  let image = null;
+  if (typeof slug === "object") {
+    image = slug.join("/");
+  }
 
   useEffect(() => {
     (async () => {
+      if (!image) {
+        return;
+      }
+
       const response = await fetch(
         process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
           "getTicket" +
@@ -29,11 +37,20 @@ export default function ViewImage() {
       );
 
       const ticket = await response.json();
-      setTicketData(ticket);
+
+      if (ticket.error) {
+        setTicketError(ticket.error);
+      } else {
+        setTicketData(ticket);
+      }
     })();
-  }, []);
+  }, [image]);
 
   useEffect(() => {
+    if (!image) {
+      return;
+    }
+
     const checkAccess = async () => {
       if (ticketData) {
         const response = await fetch(
@@ -56,9 +73,13 @@ export default function ViewImage() {
     checkAccess();
   }, [ticketData]);
 
+  if (!image) {
+    return null;
+  }
+
   return ticketData ? (
     <div>
-      {(!approved || approved === "not yet") && (
+      {(!approved || approved === "not yet") && ticketData && (
         <div>Your code: {ticketData.code}</div>
       )}
       {approved && approved === "invalid ticket" && (
