@@ -1,6 +1,29 @@
 import QRCode, { QRCodeToDataURLOptions } from "qrcode";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
+import firebase from "../shared/firebase";
+
+const apis = [
+  "approveTicket",
+  "canAccessImage",
+  "deleteUser",
+  "downloadImage",
+  "getTicket",
+  "getUrl",
+  "uploadImage",
+];
+
+interface Ticket {
+  expiration: firebase.firestore.Timestamp;
+  code: number;
+  approved: boolean;
+}
+interface User {
+  image: string;
+  tickets: {
+    [hash: string]: Ticket;
+  };
+}
 
 function QR({ url }: { url: string }) {
   const [dataUrl, setDataUrl] = useState("");
@@ -21,10 +44,10 @@ function QR({ url }: { url: string }) {
     });
   }, [url]);
 
-  return <img src={dataUrl} />;
+  return <img src={dataUrl} alt="Scan QR Code to see vaccination card." />;
 }
 
-function NoImage() {
+function NoImage({ setImageUrl }) {
   const imageInput = useRef<HTMLInputElement>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string>(null);
 
@@ -39,13 +62,28 @@ function NoImage() {
 
   return (
     <form
-      onSubmit={() => {
-        const file = imageInput.current.files[0];
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const credential = await firebase.auth().signInAnonymously();
+        const token = await credential.user.getIdToken();
 
+        const file = imageInput.current.files[0];
         const formData = new FormData();
         formData.append("file", file);
 
-        fetch("http://www.example.net", { method: "POST", body: formData });
+        const response = await fetch(
+          process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST + "uploadImage",
+          {
+            method: "POST",
+            body: formData,
+            headers: new Headers({
+              Authorization: `Bearer ${token}`,
+            }),
+          }
+        );
+        const json = await response.json();
+        const imageUrl = json.payload.imageUrl;
+        setImageUrl(imageUrl);
       }}
     >
       <div>
@@ -68,15 +106,22 @@ function NoImage() {
   );
 }
 
-function ExistingImage({ tickets }) {
+function ExistingImage({ tickets, imageUrl }) {
+  const qrUrl = new URL(imageUrl, location.href);
+
   return (
     <div>
-      <QR url="https://www.google.com" />
+      <div>{tickets && <div></div>}</div>
+      <div>
+        <QR url={qrUrl.href} />
+      </div>
     </div>
   );
 }
 
 export default function Home() {
+  const [imageUrl, setImageUrl] = useState(null);
+
   return (
     <div>
       <Head>
@@ -85,7 +130,11 @@ export default function Home() {
       </Head>
 
       <main>
-        <NoImage />
+        {imageUrl ? (
+          <ExistingImage tickets={null} imageUrl={imageUrl} />
+        ) : (
+          <NoImage setImageUrl={setImageUrl} />
+        )}
       </main>
 
       <footer></footer>

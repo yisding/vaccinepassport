@@ -1,4 +1,5 @@
 import * as Busboy from "busboy";
+const cors = require("cors")({ origin: true });
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
@@ -90,126 +91,128 @@ const parseImagePath = (imagepath: string) => {
  * In the future, we will be able to accept other files like HEIC and WebP and
  * convert them to jpg when necessary.
  */
-export const uploadImage = functions.https.onRequest(async (req, res) => {
-  functions.logger.info("uploadImage");
+export const uploadImage = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    functions.logger.info("uploadImage");
 
-  if (req.method !== "POST") {
-    // 405 is method not allowed.
-    return res.status(405).end();
-  }
+    if (req.method !== "POST") {
+      // 405 is method not allowed.
+      return res.status(405).end();
+    }
 
-  const uid = await verifyAndGetUid(req, res);
-  if (!uid) {
-    return;
-  }
-
-  const busboy = new Busboy({
-    headers: req.headers,
-    limits: {
-      // We currently don't have any fields, but we might in the future.
-      fields: 20,
-      files: 1,
-      fileSize: 9 * 1024 * 1024,
-    },
-  });
-
-  const fields: { [field: string]: string } = {};
-  busboy.on("field", (fieldname, val) => {
-    fields[fieldname] = val;
-  });
-
-  const uploads: { [fieldname: string]: string } = {};
-
-  const fileWrites: Promise<any>[] = [];
-
-  const bucket = admin.storage().bucket();
-
-  let invalidMime = false;
-  busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
-    if (mimetype !== "image/jpeg" && mimetype !== "image/png") {
-      file.resume();
-      invalidMime = true;
-
+    const uid = await verifyAndGetUid(req, res);
+    if (!uid) {
       return;
     }
 
-    let uploadname = uuidv4();
-
-    if (mimetype === "image/jpeg") {
-      uploadname = uploadname + ".jpg";
-    } else if (mimetype === "image/png") {
-      uploadname = uploadname + ".png";
-    }
-
-    const filepath = makeImagePath(uid, uploadname);
-    uploads[fieldname] = filepath;
-    const writeStream = bucket.file(filepath).createWriteStream();
-    file.pipe(writeStream);
-
-    const promise = new Promise((resolve, reject) => {
-      file.on("end", () => {
-        writeStream.end();
-      });
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
+    const busboy = new Busboy({
+      headers: req.headers,
+      limits: {
+        // We currently don't have any fields, but we might in the future.
+        fields: 20,
+        files: 1,
+        fileSize: 9 * 1024 * 1024,
+      },
     });
 
-    fileWrites.push(promise);
-  });
+    const fields: { [field: string]: string } = {};
+    busboy.on("field", (fieldname, val) => {
+      fields[fieldname] = val;
+    });
 
-  let fieldsLimit = false;
-  busboy.on("fieldsLimit", async () => {
-    fieldsLimit = true;
-  });
+    const uploads: { [fieldname: string]: string } = {};
 
-  let filesLimit = false;
-  busboy.on("filesLimit", async () => {
-    filesLimit = true;
-  });
+    const fileWrites: Promise<any>[] = [];
 
-  busboy.on("finish", async () => {
-    await Promise.all(fileWrites);
+    const bucket = admin.storage().bucket();
 
-    if (invalidMime || fieldsLimit || filesLimit) {
-      res.status(400).json({ error: "invalid upload" });
+    let invalidMime = false;
+    busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
+      if (mimetype !== "image/jpeg" && mimetype !== "image/png") {
+        file.resume();
+        invalidMime = true;
 
-      return;
-    }
-
-    const keys = Object.keys(uploads);
-    const numUploads = keys.length;
-    if (numUploads !== 1) {
-      if (numUploads > 1) {
-        functions.logger.error(
-          `For some reason user ${uid} was able to upload ${numUploads} files`
-        );
+        return;
       }
-      res.status(400).json({ error: "invalid upload" });
-      return;
-    }
 
-    const userDocRef = admin.firestore().collection("users").doc(uid);
-    const userDoc = await userDocRef.get();
-    const userData = userDoc.data() as User;
-    let oldFile = null;
-    if (userData) {
-      // userDoc exists
-      functions.logger.debug("userData", userData);
-      oldFile = userData.image;
-    }
+      let uploadname = uuidv4();
 
-    // Clear old tickets as well.
-    await userDocRef.update({ name: uploads[keys[0]], tickets: {} });
+      if (mimetype === "image/jpeg") {
+        uploadname = uploadname + ".jpg";
+      } else if (mimetype === "image/png") {
+        uploadname = uploadname + ".png";
+      }
 
-    if (oldFile) {
-      // Remove oldFile
-    }
+      const filepath = makeImagePath(uid, uploadname);
+      uploads[fieldname] = filepath;
+      const writeStream = bucket.file(filepath).createWriteStream();
+      file.pipe(writeStream);
 
-    res.json({ payload: { path: uploads[keys[0]] } });
+      const promise = new Promise((resolve, reject) => {
+        file.on("end", () => {
+          writeStream.end();
+        });
+        writeStream.on("finish", resolve);
+        writeStream.on("error", reject);
+      });
+
+      fileWrites.push(promise);
+    });
+
+    let fieldsLimit = false;
+    busboy.on("fieldsLimit", async () => {
+      fieldsLimit = true;
+    });
+
+    let filesLimit = false;
+    busboy.on("filesLimit", async () => {
+      filesLimit = true;
+    });
+
+    busboy.on("finish", async () => {
+      await Promise.all(fileWrites);
+
+      if (invalidMime || fieldsLimit || filesLimit) {
+        res.status(400).json({ error: "invalid upload" });
+
+        return;
+      }
+
+      const keys = Object.keys(uploads);
+      const numUploads = keys.length;
+      if (numUploads !== 1) {
+        if (numUploads > 1) {
+          functions.logger.error(
+            `For some reason user ${uid} was able to upload ${numUploads} files`
+          );
+        }
+        res.status(400).json({ error: "invalid upload" });
+        return;
+      }
+
+      const userDocRef = admin.firestore().collection("users").doc(uid);
+      const userDoc = await userDocRef.get();
+      const userData = userDoc.data() as User;
+      let oldFile = null;
+      if (userData) {
+        // userDoc exists
+        functions.logger.debug("userData", userData);
+        oldFile = userData.image;
+        // Clear old tickets as well.
+        await userDocRef.update({ image: uploads[keys[0]], tickets: {} });
+
+        const file = bucket.file(oldFile);
+        await file.delete();
+      } else {
+        await userDocRef.set({ image: uploads[keys[0]], tickets: {} });
+      }
+
+      res.json({ payload: { imageUrl: "/view/" + uploads[keys[0]] } });
+    });
+
+    // Have busboy process
+    busboy.end(req.rawBody);
   });
-
-  // Have busboy process
-  busboy.end(req.rawBody);
 });
 
 /**
@@ -239,7 +242,12 @@ export const getUrl = functions.https.onRequest(async (req, res) => {
  * approve the token.
  */
 export const getTicket = functions.https.onRequest(async (req, res) => {
-  functions.logger.info("getToken");
+  functions.logger.info("getTicket");
+
+  if (req.method !== "POST") {
+    // 405 is method not allowed.
+    return res.status(405).end();
+  }
 
   const image = req.query.image;
   if (!image || typeof image !== "string") {
