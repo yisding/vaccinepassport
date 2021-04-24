@@ -18,11 +18,13 @@ interface Ticket {
   code: number;
   approved: boolean;
 }
+
+interface Tickets {
+  [hash: string]: Ticket;
+}
 interface User {
   image: string;
-  tickets: {
-    [hash: string]: Ticket;
-  };
+  tickets: Tickets;
 }
 
 function QR({ url }: { url: string }) {
@@ -114,29 +116,150 @@ function NoImage({
   );
 }
 
-function ExistingImage({ imageUrl, token }) {
-  const [tickets, setTickets] = useState(null);
+function ExistingImage({ imageUrl, setImageUrl, token }) {
+  const [tickets, setTickets] = useState<Tickets>(null);
+  const [processedTickets, setProcessedTickets] = useState<string[]>([]);
+  const [deletePending, setDeletePending] = useState(false);
+
+  const uid = firebase.auth().currentUser.uid;
 
   useEffect(() => {
     const db = firebase.firestore();
-    const userDocRef = db
-      .collection("users")
-      .doc(firebase.auth().currentUser.uid);
+    const userDocRef = db.collection("users").doc(uid);
 
-    userDocRef.onSnapshot((doc) => {
+    const unsub = userDocRef.onSnapshot((doc) => {
+      const now = Date.now();
       const userData = doc.data() as User;
-      setTickets(userData.tickets);
+
+      if (!userData) {
+        return;
+      }
+
+      const userTickets = userData.tickets;
+
+      console.log("tickets");
+      console.log(tickets);
+      console.log("processedTickets");
+      console.log(processedTickets);
+      const processedSet = new Set(processedTickets);
+      console.log("processedSet");
+      console.log(processedSet);
+      const hashes = Object.keys(userTickets);
+      for (const hash of hashes) {
+        if (userTickets[hash].expiration.toMillis() < now) {
+          processedSet.add(hash);
+        }
+      }
+
+      setProcessedTickets([...processedSet]);
+      setTickets(userTickets);
     });
-  }, []);
+
+    return () => {
+      console.log("unsubscribe");
+      unsub();
+    };
+  }, [uid]);
 
   const qrUrl = new URL(imageUrl, location.href);
 
+  const getNextTicket = () => {
+    if (!tickets) {
+      return {
+        nextHash: null,
+        nextExpiration: null,
+        nextCode: null,
+      };
+    }
+
+    const hashes = Object.keys(tickets);
+    const processedSet = new Set(processedTickets);
+    let nearestHash = null;
+    let nearestExpiration = null;
+    let nearestCode = null;
+    for (const hash of hashes) {
+      if (!processedSet.has(hash)) {
+        if (
+          !nearestExpiration ||
+          tickets[hash].expiration.toMillis() < nearestExpiration
+        ) {
+          nearestExpiration = tickets[hash].expiration.toMillis();
+          nearestHash = hash;
+          nearestCode = tickets[hash].code;
+        }
+      }
+    }
+
+    return {
+      nextHash: nearestHash,
+      nextExpiration: nearestExpiration,
+      nextCode: nearestCode,
+    };
+  };
+
+  const { nextHash, nextExpiration, nextCode } = getNextTicket();
+
   return (
     <div>
-      <div>{tickets && <div></div>}</div>
+      <div>
+        {nextHash && (
+          <div>
+            Request to view your image. Code: {nextCode}{" "}
+            <button
+              onClick={async () => {
+                const response = await fetch(
+                  process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
+                    "approveTicket" +
+                    `?hash=${nextHash}`,
+                  {
+                    method: "POST",
+                    headers: new Headers({
+                      Authorization: `Bearer ${token}`,
+                    }),
+                  }
+                );
+
+                const processedSet = new Set(processedTickets);
+                processedSet.add(nextHash);
+                setProcessedTickets([...processedSet]);
+              }}
+            >
+              Approve
+            </button>{" "}
+            <button
+              onClick={() => {
+                const processedSet = new Set(processedTickets);
+                processedSet.add(nextHash);
+                setProcessedTickets([...processedSet]);
+              }}
+            >
+              Deny
+            </button>
+          </div>
+        )}
+      </div>
       <div>
         <QR url={qrUrl.href} />
       </div>
+      <button
+        onClick={async () => {
+          setDeletePending(true);
+          const response = await fetch(
+            process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST + "deleteUser",
+            {
+              method: "POST",
+              headers: new Headers({
+                Authorization: `Bearer ${token}`,
+              }),
+            }
+          );
+
+          setImageUrl(null);
+        }}
+        disabled={deletePending}
+      >
+        Delete Image and Data
+      </button>
     </div>
   );
 }
@@ -180,7 +303,11 @@ export default function Home() {
         {fetchingUrl ? (
           <div>Loading...</div>
         ) : imageUrl ? (
-          <ExistingImage imageUrl={imageUrl} token={token} />
+          <ExistingImage
+            imageUrl={imageUrl}
+            setImageUrl={setImageUrl}
+            token={token}
+          />
         ) : (
           <NoImage setImageUrl={setImageUrl} token={token} />
         )}

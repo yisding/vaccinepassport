@@ -65,7 +65,7 @@ export default function ViewImage() {
         setApproved(canAccessImage.approved);
 
         if (canAccessImage.approved === "not yet") {
-          setTimeout(checkAccess, 15 * 1000);
+          setTimeout(checkAccess, 5 * 1000);
         }
       }
     };

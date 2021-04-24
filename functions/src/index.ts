@@ -304,14 +304,19 @@ export const getTicket = functions.https.onRequest((req, res) => {
  */
 export const approveTicket = functions.https.onRequest((req, res) => {
   return cors(req, res, async () => {
-    functions.logger.info("getToken");
-    const hash = req.query.hash;
+    functions.logger.info("approveTicket");
+
+    if (req.method !== "POST") {
+      // 405 is method not allowed.
+      return res.status(405).end();
+    }
 
     const uid = await verifyAndGetUid(req, res);
     if (!uid) {
       return;
     }
 
+    const hash = req.query.hash;
     if (!hash || typeof hash !== "string") {
       res.status(400).json({ error: "missing hash" });
       return;
@@ -448,6 +453,11 @@ export const downloadImage = functions.https.onRequest((req, res) => {
 
 export const deleteUser = functions.https.onRequest((req, res) => {
   return cors(req, res, async () => {
+    if (req.method !== "POST") {
+      // 405 is method not allowed.
+      return res.status(405).end();
+    }
+
     const uid = await verifyAndGetUid(req, res);
     if (!uid) {
       return;
