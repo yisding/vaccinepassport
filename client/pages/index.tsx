@@ -118,6 +118,8 @@ function NoImage({
 
 function ExistingImage({ imageUrl, setImageUrl, token }) {
   const [tickets, setTickets] = useState<Tickets>(null);
+  console.log("first tickets");
+  console.log(tickets);
   const [processedTickets, setProcessedTickets] = useState<string[]>([]);
   const [deletePending, setDeletePending] = useState(false);
 
@@ -126,6 +128,8 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
   useEffect(() => {
     const db = firebase.firestore();
     const userDocRef = db.collection("users").doc(uid);
+    console.log("outside snapshot tickets");
+    console.log(tickets);
 
     const unsub = userDocRef.onSnapshot((doc) => {
       const now = Date.now();
@@ -144,12 +148,12 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
       const processedSet = new Set(processedTickets);
       console.log("processedSet");
       console.log(processedSet);
-      const hashes = Object.keys(userTickets);
-      for (const hash of hashes) {
-        if (userTickets[hash].expiration.toMillis() < now) {
-          processedSet.add(hash);
-        }
-      }
+      // const hashes = Object.keys(userTickets);
+      // for (const hash of hashes) {
+      //   if (userTickets[hash].expiration.toMillis() < now) {
+      //     processedSet.add(hash);
+      //   }
+      // }
 
       setProcessedTickets([...processedSet]);
       setTickets(userTickets);
