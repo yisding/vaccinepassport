@@ -65,13 +65,13 @@ export default function ViewImage() {
         setApproved(canAccessImage.approved);
 
         if (canAccessImage.approved === "not yet") {
-          setTimeout(checkAccess, 30 * 1000);
+          setTimeout(checkAccess, 15 * 1000);
         }
       }
     };
 
     checkAccess();
-  }, [ticketData]);
+  }, [image, ticketData]);
 
   if (!image) {
     return null;

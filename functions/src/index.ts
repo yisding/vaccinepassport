@@ -1,11 +1,13 @@
 import * as Busboy from "busboy";
-const cors = require("cors")({ origin: true });
+import * as Cors from "cors";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import { v4 as uuidv4 } from "uuid";
 
 import { verifyAndGetUid } from "./utils";
+
+const cors = Cors({ origin: true });
 
 admin.initializeApp();
 const FieldValue = admin.firestore.FieldValue;
@@ -286,7 +288,7 @@ export const getTicket = functions.https.onRequest((req, res) => {
     const hash = crypto.randomBytes(16).toString("hex");
     const ticket: Ticket = {
       code,
-      expiration: FirebaseFirestore.Timestamp.fromMillis(expiration),
+      expiration: admin.firestore.Timestamp.fromMillis(expiration),
       approved: false,
     };
     await sharerDocRef.update({ [`tickets.${hash}`]: ticket });
@@ -328,7 +330,7 @@ export const approveTicket = functions.https.onRequest((req, res) => {
         if (expirationTime < oneMinuteFromNow) {
           await userDocRef.update({
             [`tickets.${hash}.approved`]: true,
-            [`tickets.${hash}.expiration`]: FirebaseFirestore.Timestamp.fromMillis(
+            [`tickets.${hash}.expiration`]: admin.firestore.Timestamp.fromMillis(
               oneMinuteFromNow
             ),
           });
@@ -353,6 +355,12 @@ const isApproved = async (sharerUid: string, hash: string) => {
 
   const ticket = sharerData.tickets[hash];
 
+  const now = Date.now();
+  if (ticket.expiration.toMillis() < now) {
+    await sharerDocRef.update({ [`tickets.${hash}`]: FieldValue.delete() });
+    return "invalid ticket";
+  }
+
   if (!ticket) {
     return "invalid ticket";
   }
@@ -365,13 +373,17 @@ const isApproved = async (sharerUid: string, hash: string) => {
 };
 
 /**
+ * Check to see if the hash is valid (yet).
+ *
  * We could try to do this via realtime updates, but then we would need to
  * create some kind of publicly available document that the frontend can
  * subscribe to. So it's easier for now for the frontend to just poll this
  * endpoint.
  */
-export const canAccessimage = functions.https.onRequest((req, res) => {
+export const canAccessImage = functions.https.onRequest((req, res) => {
   return cors(req, res, async () => {
+    functions.logger.info("canAccessImage");
+
     const { image, hash } = req.query;
 
     if (!image || typeof image !== "string") {
