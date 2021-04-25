@@ -10,8 +10,6 @@ interface TicketData {
 export default function ViewImage() {
   const router = useRouter();
   const { slug } = router.query;
-  console.log("slug");
-  console.log(slug);
   const [ticketData, setTicketData] = useState<TicketData>(null);
   const [approved, setApproved] = useState<string>(null);
   const [ticketError, setTicketError] = useState<string>(null);

@@ -118,8 +118,6 @@ function NoImage({
 
 function ExistingImage({ imageUrl, setImageUrl, token }) {
   const [tickets, setTickets] = useState<Tickets>(null);
-  console.log("first tickets");
-  console.log(tickets);
   const [processedTickets, setProcessedTickets] = useState<string[]>([]);
   const [deletePending, setDeletePending] = useState(false);
 
@@ -132,7 +130,6 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
     console.log(tickets);
 
     const unsub = userDocRef.onSnapshot((doc) => {
-      const now = Date.now();
       const userData = doc.data() as User;
 
       if (!userData) {
@@ -141,21 +138,19 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
 
       const userTickets = userData.tickets;
 
-      console.log("tickets");
-      console.log(tickets);
-      console.log("processedTickets");
-      console.log(processedTickets);
-      const processedSet = new Set(processedTickets);
-      console.log("processedSet");
-      console.log(processedSet);
-      // const hashes = Object.keys(userTickets);
-      // for (const hash of hashes) {
-      //   if (userTickets[hash].expiration.toMillis() < now) {
-      //     processedSet.add(hash);
-      //   }
-      // }
+      setProcessedTickets((processed) => {
+        const now = Date.now();
+        const processedSet = new Set(processed);
 
-      setProcessedTickets([...processedSet]);
+        const hashes = Object.keys(userTickets);
+        for (const hash of hashes) {
+          if (userTickets[hash].expiration.toMillis() < now) {
+            processedSet.add(hash);
+          }
+        }
+
+        return [...processedSet];
+      });
       setTickets(userTickets);
     });
 
