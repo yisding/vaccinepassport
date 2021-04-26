@@ -75,27 +75,37 @@ export default function ViewImage() {
     return null;
   }
 
-  return ticketData ? (
+  return (
     <div>
-      {(!approved || approved === "not yet") && ticketData && (
-        <div>Your code: {ticketData.code}</div>
-      )}
-      {approved && approved === "invalid ticket" && (
-        <div>Please rescan the QR code</div>
-      )}
-      {approved && approved === "approved" && (
-        <img
-          src={
-            process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
-            "downloadImage" +
-            `?image=${encodeURIComponent(image)}&hash=${encodeURIComponent(
-              ticketData.hash
-            )}`
-          }
-        />
+      <header className="bg-blue-500 p-4 text-center text-white text-2xl">
+        <h1>Vaccine Passport Viewer</h1>
+      </header>
+      {ticketData ? (
+        <div className="text-2xl p-8 text-center">
+          {(!approved || approved === "not yet") && ticketData && (
+            <div>
+              <p>Requesting Access.</p>
+              <p>Your code is {ticketData.code}</p>
+            </div>
+          )}
+          {approved && approved === "invalid ticket" && (
+            <div>Please rescan the QR code</div>
+          )}
+          {approved && approved === "approved" && (
+            <img
+              src={
+                process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
+                "downloadImage" +
+                `?image=${encodeURIComponent(image)}&hash=${encodeURIComponent(
+                  ticketData.hash
+                )}`
+              }
+            />
+          )}
+        </div>
+      ) : (
+        <div className="pt-8 text-2xl text-center">Loading...</div>
       )}
     </div>
-  ) : (
-    <div>Loading...</div>
   );
 }

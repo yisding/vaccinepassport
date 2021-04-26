@@ -49,6 +49,25 @@ function QR({ url }: { url: string }) {
   return <img src={dataUrl} alt="Scan QR Code to see vaccination card." />;
 }
 
+function Back() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="12.588"
+      height="20.141"
+      viewBox="0 0 12.588 20.141"
+    >
+      <path
+        d="M97.469,59.762a1.8,1.8,0,0,0,0-2.562,1.823,1.823,0,0,0-2.562,0l-6.4,6.4-6.416-6.4a1.811,1.811,0,0,0-2.562,2.562l7.7,7.7a1.823,1.823,0,0,0,2.562,0Z"
+        transform="translate(68.624 -78.363) rotate(90)"
+        fill="#3b3434"
+        stroke="rgba(0,0,0,0)"
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
+
 function NoImage({
   token,
   setImageUrl,
@@ -60,6 +79,11 @@ function NoImage({
   const [imageDataUrl, setImageDataUrl] = useState<string>(null);
 
   function handleChange() {
+    if (imageInput.current.files.length !== 1) {
+      setImageDataUrl(null);
+      return;
+    }
+
     const file = imageInput.current.files[0];
     const fileReader = new FileReader();
     fileReader.onload = () => {
@@ -93,24 +117,59 @@ function NoImage({
       }}
     >
       <div>
-        <label htmlFor="image">Upload Your Vaccine Card:</label>
-      </div>
-      <div>
         <input
-          name="image"
+          id="image"
           type="file"
           accept="image/png, image/jpeg"
           ref={imageInput}
           onChange={handleChange}
+          style={{ opacity: 0, position: "absolute", height: 0.1, width: 0.1 }}
         />
-      </div>
-      <div>{imageDataUrl && <img src={imageDataUrl} />}</div>
-      <div>
-        <input
-          type="submit"
-          value="Upload"
-          disabled={!token || !imageDataUrl}
-        />
+        <div>
+          {imageDataUrl ? (
+            <>
+              <div>
+                <button
+                  className="p-4"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    imageInput.current.value = ""; // This doesn't cause onChange to fire for some reason.
+                    setImageDataUrl(null);
+                  }}
+                >
+                  <Back />
+                </button>
+              </div>
+              <div className="text-center pt-24">
+                <div className="p-4">
+                  <img src={imageDataUrl} />
+                </div>
+                <div className="mt-8">
+                  <input
+                    type="submit"
+                    value="Create My QR Code"
+                    disabled={!token || !imageDataUrl}
+                    className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="py-32 text-center">
+              <div className="text-lg px-10">
+                Take a photo or upload a photo of your vaccine card.
+              </div>
+              <div className="mt-8">
+                <label
+                  htmlFor="image"
+                  className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+                >
+                  Upload Card
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </form>
   );
@@ -199,66 +258,80 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
   const { nextHash, nextExpiration, nextCode } = getNextTicket();
 
   return (
-    <div>
-      <div>
-        {nextHash && (
-          <div>
-            Request to view your image. Code: {nextCode}{" "}
-            <button
-              onClick={async () => {
-                const response = await fetch(
-                  process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
-                    "approveTicket" +
-                    `?hash=${nextHash}`,
-                  {
-                    method: "POST",
-                    headers: new Headers({
-                      Authorization: `Bearer ${token}`,
-                    }),
-                  }
-                );
+    <div className="text-center">
+      <div className="text-2xl pt-20">Ready to Scan</div>
 
-                const processedSet = new Set(processedTickets);
-                processedSet.add(nextHash);
-                setProcessedTickets([...processedSet]);
-              }}
-            >
-              Approve
-            </button>{" "}
-            <button
-              onClick={() => {
-                const processedSet = new Set(processedTickets);
-                processedSet.add(nextHash);
-                setProcessedTickets([...processedSet]);
-              }}
-            >
-              Deny
-            </button>
-          </div>
-        )}
-      </div>
-      <div>
+      <div className="py-4 mx-auto w-56">
         <QR url={qrUrl.href} />
       </div>
-      <button
-        onClick={async () => {
-          setDeletePending(true);
-          const response = await fetch(
-            process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST + "deleteUser",
-            {
-              method: "POST",
-              headers: new Headers({
-                Authorization: `Bearer ${token}`,
-              }),
-            }
-          );
 
-          setImageUrl(null);
-        }}
-        disabled={deletePending}
-      >
-        Delete Image and Data
-      </button>
+      <div>
+        {nextHash ? (
+          <div>
+            <div className="text-2xl px-8">
+              <p>You have a request to view your image.</p>
+              <p>Code: {nextCode}</p>
+            </div>
+            <div className="mt-8">
+              <button
+                onClick={async () => {
+                  const response = await fetch(
+                    process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
+                      "approveTicket" +
+                      `?hash=${nextHash}`,
+                    {
+                      method: "POST",
+                      headers: new Headers({
+                        Authorization: `Bearer ${token}`,
+                      }),
+                    }
+                  );
+
+                  const processedSet = new Set(processedTickets);
+                  processedSet.add(nextHash);
+                  setProcessedTickets([...processedSet]);
+                }}
+                className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+              >
+                Approve
+              </button>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  const processedSet = new Set(processedTickets);
+                  processedSet.add(nextHash);
+                  setProcessedTickets([...processedSet]);
+                }}
+                className="bg-white rounded-full py-2 px-4 text-red-500 text-lg border-gray-600 border-2"
+              >
+                Deny
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={async () => {
+              setDeletePending(true);
+              const response = await fetch(
+                process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST + "deleteUser",
+                {
+                  method: "POST",
+                  headers: new Headers({
+                    Authorization: `Bearer ${token}`,
+                  }),
+                }
+              );
+
+              setImageUrl(null);
+            }}
+            disabled={deletePending}
+            className="mt-8 bg-red-600 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+          >
+            Delete Image and Data
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -298,9 +371,13 @@ export default function Home() {
         <link rel="icon" href="/vaccine.png" />
       </Head>
 
+      <header className="bg-blue-500 p-4 text-center text-white text-2xl">
+        <h1>Vaccine Passport</h1>
+      </header>
+
       <main>
         {fetchingUrl ? (
-          <div>Loading...</div>
+          <div className="pt-8 text-2xl text-center">Loading...</div>
         ) : imageUrl ? (
           <ExistingImage
             imageUrl={imageUrl}
