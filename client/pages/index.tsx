@@ -140,7 +140,7 @@ function NoImage({
                   <Back />
                 </button>
               </div>
-              <div className="text-center pt-24">
+              <div className="text-center pt-12">
                 <div className="p-4">
                   <img src={imageDataUrl} />
                 </div>
@@ -389,7 +389,9 @@ export default function Home() {
         )}
       </main>
 
-      <footer></footer>
+      <footer className="text-center text-sm p-4 pt-8">
+        Created by Yi Ding. Designed by Anna Ding.
+      </footer>
     </div>
   );
 }

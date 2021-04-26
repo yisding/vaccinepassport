@@ -85,11 +85,11 @@ export default function ViewImage() {
           {(!approved || approved === "not yet") && ticketData && (
             <div>
               <p>Requesting Access.</p>
-              <p>Your code is {ticketData.code}</p>
+              <p>Your code is {ticketData.code}.</p>
             </div>
           )}
           {approved && approved === "invalid ticket" && (
-            <div>Please rescan the QR code</div>
+            <div>Please rescan the QR code.</div>
           )}
           {approved && approved === "approved" && (
             <img
@@ -106,6 +106,10 @@ export default function ViewImage() {
       ) : (
         <div className="pt-8 text-2xl text-center">Loading...</div>
       )}
+
+      <footer className="text-center text-sm p-4 pt-8">
+        Created by Yi Ding. Designed by Anna Ding.
+      </footer>
     </div>
   );
 }
