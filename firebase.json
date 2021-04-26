@@ -29,14 +29,14 @@
   },
   "hosting": {
     "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
-        "source": "**",
+        "source": "view/**",
+        "destination": "/view/[...slug].html"
+      },
+      {
+        "source": "/",
         "destination": "/index.html"
       }
     ]

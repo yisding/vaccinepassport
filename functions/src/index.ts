@@ -24,26 +24,6 @@ interface User {
   };
 }
 
-export const testFirebase = functions.https.onRequest(async (req, res) => {
-  functions.logger.info("testFirebase");
-  const userDoc = await admin
-    .firestore()
-    .collection("users")
-    .doc("jY6M2DYq3MWfzWyALY2W")
-    .get();
-  const userData: User | undefined = userDoc.data() as User;
-  functions.logger.debug(userData);
-  const time =
-    userData.tickets["5894f3f6-2323-4eb7-a903-2bd08fd9974c"].expiration;
-  functions.logger.debug(
-    `seconds: ${time.seconds} nano: ${
-      time.nanoseconds
-    } valueOf: ${time.valueOf()}`
-  );
-  res.end();
-  return;
-});
-
 /**
  * Here's the flow:
  *
