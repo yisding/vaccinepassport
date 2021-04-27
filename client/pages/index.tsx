@@ -39,6 +39,7 @@ function QR({ url }: { url: string }) {
       scale: 8,
       color: {
         dark: "#059669FF",
+        light: "#F9FAFBFF",
       },
     };
 
@@ -367,7 +368,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full bg-gray-50">
       <Head>
         <title>DIY Vaccine Passport</title>
         <link rel="icon" href="/vaccine.png" />

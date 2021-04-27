@@ -79,7 +79,7 @@ export default function ViewImage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full bg-gray-50">
       <Head>
         <title>DIY Vaccine Passport</title>
         <link rel="icon" href="/vaccine.png" />
@@ -87,7 +87,7 @@ export default function ViewImage() {
       <Header title="Vaccine Passport Viewer" />
       <div className="flex-grow">
         {ticketData ? (
-          <div className="text-2xl p-8 text-center">
+          <div className="text-2xl p-8 text-center ">
             {(!approved || approved === "not yet") && ticketData && (
               <div>
                 <p>Requesting Access.</p>
