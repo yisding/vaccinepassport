@@ -159,6 +159,12 @@ function NoImage({
             </>
           ) : (
             <div className="py-32 text-center">
+              {navigator.userAgent.indexOf("Mobi") === -1 && (
+                <div className="text-lg px-10 py-4">
+                  Feel free to try this anywhere, but you probably want to use
+                  it on your phone.
+                </div>
+              )}
               <div className="text-lg px-10">
                 Take a photo or upload a photo of your vaccine card.
               </div>
@@ -206,7 +212,10 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
 
         const hashes = Object.keys(userTickets);
         for (const hash of hashes) {
-          if (userTickets[hash].expiration.toMillis() < now) {
+          if (
+            userTickets[hash].expiration.toMillis() < now ||
+            userTickets[hash].approved
+          ) {
             processedSet.add(hash);
           }
         }
