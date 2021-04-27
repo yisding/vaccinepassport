@@ -1,5 +1,8 @@
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import Footer from "../../components/footer";
+import Header from "../../components/header";
 
 interface TicketData {
   hash: string;
@@ -76,40 +79,41 @@ export default function ViewImage() {
   }
 
   return (
-    <div>
-      <header className="bg-blue-500 p-4 text-center text-white text-2xl">
-        <h1>Vaccine Passport Viewer</h1>
-      </header>
-      {ticketData ? (
-        <div className="text-2xl p-8 text-center">
-          {(!approved || approved === "not yet") && ticketData && (
-            <div>
-              <p>Requesting Access.</p>
-              <p>Your code is {ticketData.code}.</p>
-            </div>
-          )}
-          {approved && approved === "invalid ticket" && (
-            <div>Please rescan the QR code.</div>
-          )}
-          {approved && approved === "approved" && (
-            <img
-              src={
-                process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
-                "downloadImage" +
-                `?image=${encodeURIComponent(image)}&hash=${encodeURIComponent(
-                  ticketData.hash
-                )}`
-              }
-            />
-          )}
-        </div>
-      ) : (
-        <div className="pt-8 text-2xl text-center">Loading...</div>
-      )}
-
-      <footer className="text-center text-sm p-4 pt-8">
-        Created by Yi Ding. Designed by Anna Ding.
-      </footer>
+    <div className="flex flex-col min-h-full">
+      <Head>
+        <title>DIY Vaccine Passport</title>
+        <link rel="icon" href="/vaccine.png" />
+      </Head>
+      <Header title="Vaccine Passport Viewer" />
+      <div className="flex-grow">
+        {ticketData ? (
+          <div className="text-2xl p-8 text-center">
+            {(!approved || approved === "not yet") && ticketData && (
+              <div>
+                <p>Requesting Access.</p>
+                <p>Your code is {ticketData.code}.</p>
+              </div>
+            )}
+            {approved && approved === "invalid ticket" && (
+              <div>Please rescan the QR code.</div>
+            )}
+            {approved && approved === "approved" && (
+              <img
+                src={
+                  process.env.NEXT_PUBLIC_FIRE_FUNCTIONS_HOST +
+                  "downloadImage" +
+                  `?image=${encodeURIComponent(
+                    image
+                  )}&hash=${encodeURIComponent(ticketData.hash)}`
+                }
+              />
+            )}
+          </div>
+        ) : (
+          <div className="pt-8 text-2xl text-center">Loading...</div>
+        )}
+      </div>
+      <Footer />
     </div>
   );
 }

@@ -2,6 +2,8 @@ import QRCode, { QRCodeToDataURLOptions } from "qrcode";
 import Head from "next/head";
 import { useEffect, useRef, useState } from "react";
 import firebase from "../shared/firebase";
+import Footer from "../components/footer";
+import Header from "../components/header";
 
 const apis = [
   "approveTicket",
@@ -365,17 +367,13 @@ export default function Home() {
   }, []);
 
   return (
-    <div>
+    <div className="flex flex-col min-h-full">
       <Head>
         <title>DIY Vaccine Passport</title>
         <link rel="icon" href="/vaccine.png" />
       </Head>
-
-      <header className="bg-blue-500 p-4 text-center text-white text-2xl">
-        <h1>Vaccine Passport</h1>
-      </header>
-
-      <main>
+      <Header title="Vaccine Passport" />
+      <main className="flex-grow">
         {fetchingUrl ? (
           <div className="pt-8 text-2xl text-center">Loading...</div>
         ) : imageUrl ? (
@@ -388,10 +386,7 @@ export default function Home() {
           <NoImage setImageUrl={setImageUrl} token={token} />
         )}
       </main>
-
-      <footer className="text-center text-sm p-4 pt-8">
-        Created by Yi Ding. Designed by Anna Ding.
-      </footer>
+      <Footer />
     </div>
   );
 }
