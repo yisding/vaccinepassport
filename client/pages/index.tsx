@@ -52,6 +52,27 @@ function QR({ url }: { url: string }) {
   return <img src={dataUrl} alt="Scan QR Code to see vaccination card." />;
 }
 
+function Clipboard({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <>
+      <div>
+        <button
+          className="underline text-sm"
+          onClick={async () => {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+          }}
+        >
+          Copy viewing link to clipboard
+        </button>
+      </div>
+      <div className="text-sm">{copied ? "Copied!" : "\xa0" /*nbsp*/}</div>
+    </>
+  );
+}
+
 function Back() {
   return (
     <svg
@@ -273,6 +294,7 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
 
       <div className="py-4 mx-auto w-56">
         <QR url={qrUrl.href} />
+        <Clipboard url={qrUrl.href} />
       </div>
 
       <div>
