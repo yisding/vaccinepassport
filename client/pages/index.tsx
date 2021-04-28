@@ -159,12 +159,10 @@ function NoImage({
             </>
           ) : (
             <div className="py-32 text-center">
-              {navigator.userAgent.indexOf("Mobi") === -1 && (
-                <div className="text-lg px-10 py-4">
-                  Feel free to try this anywhere, but you probably want to use
-                  it on your phone.
-                </div>
-              )}
+              <div className="hidden md:block text-lg px-10 py-4">
+                Feel free to try this anywhere, but you probably want to use
+                this on your phone.
+              </div>
               <div className="text-lg px-10">
                 Take a photo or upload a photo of your vaccine card.
               </div>
