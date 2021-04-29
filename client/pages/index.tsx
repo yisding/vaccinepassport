@@ -173,7 +173,7 @@ function NoImage({
                     type="submit"
                     value="Create My QR Code"
                     disabled={!token || !imageDataUrl}
-                    className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+                    className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg"
                   />
                 </div>
               </div>
@@ -190,7 +190,7 @@ function NoImage({
               <div className="mt-8">
                 <label
                   htmlFor="image"
-                  className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+                  className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg"
                 >
                   Upload Card
                 </label>
@@ -323,7 +323,7 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
                   processedSet.add(nextHash);
                   setProcessedTickets([...processedSet]);
                 }}
-                className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+                className="bg-blue-500 rounded-full py-2 px-4 text-white text-lg"
               >
                 Approve
               </button>
@@ -358,7 +358,7 @@ function ExistingImage({ imageUrl, setImageUrl, token }) {
               setImageUrl(null);
             }}
             disabled={deletePending}
-            className="mt-8 bg-red-600 rounded-full py-2 px-4 text-white text-lg border-gray-600 border-2"
+            className="mt-8 bg-red-600 rounded-full py-2 px-4 text-white text-lg"
           >
             Delete Image and Data
           </button>
@@ -402,7 +402,7 @@ export default function Home() {
         <title>DIY Vaccine Passport</title>
         <link rel="icon" href="/vaccine.png" />
       </Head>
-      <Header title="Vaccine Passport" />
+      <Header title="DIY Vaccine Passport" />
       <main className="flex-grow">
         {fetchingUrl ? (
           <div className="pt-8 text-2xl text-center">Loading...</div>
